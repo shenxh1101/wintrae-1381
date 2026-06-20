@@ -42,11 +42,15 @@ const BookingDetailPage: React.FC = () => {
     );
   }
 
-  const refundedTotal = booking.items
-    .filter(i => i.status === 'refunded')
-    .reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const refundedTotal = booking.refundedAmount != null
+    ? booking.refundedAmount
+    : booking.items
+      .filter(i => i.status === 'refunded')
+      .reduce((sum, i) => sum + i.price * i.quantity, 0);
 
-  const actualAmount = booking.totalAmount - refundedTotal;
+  const actualAmount = booking.actualAmount != null
+    ? booking.actualAmount
+    : booking.totalAmount - refundedTotal;
 
   const handlePickup = async () => {
     setActionLoading('pickup');
@@ -90,11 +94,6 @@ const BookingDetailPage: React.FC = () => {
               if (modalRes.confirm && modalRes.content?.trim()) {
                 setActionLoading(`item-${itemIndex}`);
                 updateBookingItemStatus(booking.id, itemIndex, 'exchanged', modalRes.content.trim());
-                const hasNormal = booking.items.some((i, idx) => idx !== itemIndex && i.status === 'normal');
-                const currHasNormal = booking.items[itemIndex].status === 'normal';
-                if (currHasNormal || hasNormal) {
-                  updateBookingStatus(booking.id, 'partial');
-                }
                 Taro.showToast({ title: '已记录替换', icon: 'success' });
                 setActionLoading(null);
               }
@@ -109,12 +108,6 @@ const BookingDetailPage: React.FC = () => {
               if (modalRes.confirm) {
                 setActionLoading(`item-${itemIndex}`);
                 updateBookingItemStatus(booking.id, itemIndex, 'refunded');
-                const hasNormal = booking.items.some((i, idx) => idx !== itemIndex && i.status === 'normal');
-                if (hasNormal) {
-                  updateBookingStatus(booking.id, 'partial');
-                } else {
-                  updateBookingStatus(booking.id, 'refund');
-                }
                 Taro.showToast({ title: '已提交退款', icon: 'success' });
                 setActionLoading(null);
               }

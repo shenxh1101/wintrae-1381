@@ -6,7 +6,8 @@ export default defineAppConfig({
     'pages/verify/index',
     'pages/notify/index',
     'pages/product-edit/index',
-    'pages/booking-detail/index'
+    'pages/booking-detail/index',
+    'pages/notification-detail/index'
   ],
   window: {
     backgroundTextStyle: 'light',

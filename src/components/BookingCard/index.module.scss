@@ -201,6 +201,18 @@
   font-weight: $font-weight-normal;
 }
 
+.amountValue {
+  color: $color-price;
+}
+
+.amountOriginal {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  text-decoration: line-through;
+  margin-left: $spacing-xs;
+  font-weight: $font-weight-normal;
+}
+
 .actions {
   display: flex;
   gap: $spacing-sm;

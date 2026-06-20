@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import Taro from '@tarojs/taro';
 import { Product } from '../types/product';
-import { Booking } from '../types/booking';
+import { Booking, deriveBookingStatus, calcRefundedAmount, calcActualAmount, statusLabels } from '../types/booking';
 import { NotificationRecord } from '../types/notification';
 import { mockProducts } from '../data/products';
 import { mockBookings } from '../data/bookings';
 import { mockNotificationRecords } from '../data/notifications';
-import { generateId } from '../utils';
+import { generateId, formatCurrency } from '../utils';
 
 const STORAGE_KEYS = {
   products: 'fm_products_v1',
@@ -151,16 +151,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateBookingStatus = useCallback((id: string, status: Booking['status'], remark?: string) => {
     setBookings(prev => prev.map(b => {
       if (b.id !== id) return b;
+      let newItems = b.items;
+      if (status === 'refund') {
+        newItems = b.items.map(item => ({ ...item, status: 'refunded' as const }));
+      }
+      const refundedAmt = calcRefundedAmount(newItems);
+      const actualAmt = calcActualAmount(newItems, b.totalAmount);
       const log = {
         id: generateId(),
         action: status === 'picked' ? '确认取货' : status === 'refund' ? '退款处理' : status === 'partial' ? '部分取货' : status === 'cancelled' ? '订单取消' : '状态变更',
         operator: '摊主',
         timestamp: new Date().toISOString(),
-        detail: remark
+        detail: remark || (status === 'refund' ? `全额退款 ${formatCurrency(b.totalAmount)}` : undefined)
       };
       return {
         ...b,
         status,
+        items: newItems,
+        refundedAmount: refundedAmt,
+        actualAmount: actualAmt,
         remark: remark || b.remark,
         pickedAt: (status === 'picked' || status === 'partial') ? new Date().toISOString() : b.pickedAt,
         operationLogs: [...b.operationLogs, log]
@@ -174,17 +183,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (b.id !== bookingId) return b;
       const newItems = [...b.items];
       newItems[itemIndex] = { ...newItems[itemIndex], status, exchangedItem };
+      const derivedStatus = deriveBookingStatus(newItems, b.status);
+      const refundedAmt = calcRefundedAmount(newItems);
+      const actualAmt = calcActualAmount(newItems, b.totalAmount);
       const log = {
         id: generateId(),
         action: status === 'exchanged' ? '缺货替换' : status === 'refunded' ? '商品退款' : '商品状态更新',
         operator: '摊主',
         timestamp: new Date().toISOString(),
-        detail: `${newItems[itemIndex].productName} - ${exchangedItem || (status === 'refunded' ? '已退款' : '正常')}`
+        detail: `${newItems[itemIndex].productName} - ${exchangedItem || (status === 'refunded' ? '已退款 ' + formatCurrency(newItems[itemIndex].price * newItems[itemIndex].quantity) : '正常')}`
       };
+      const statusChanged = derivedStatus !== b.status;
+      const mergedLogs = [...b.operationLogs, log];
+      if (statusChanged) {
+        mergedLogs.push({
+          id: generateId(),
+          action: derivedStatus === 'partial' ? '部分取货' : derivedStatus === 'refund' ? '退款处理' : '状态变更',
+          operator: '系统',
+          timestamp: new Date().toISOString(),
+          detail: `订单状态同步为${statusLabels[derivedStatus]}（实付金额 ${formatCurrency(actualAmt)}）`
+        });
+      }
       return {
         ...b,
         items: newItems,
-        operationLogs: [...b.operationLogs, log]
+        status: derivedStatus,
+        refundedAmount: refundedAmt,
+        actualAmount: actualAmt,
+        pickedAt: derivedStatus === 'partial' ? b.pickedAt || new Date().toISOString() : b.pickedAt,
+        operationLogs: mergedLogs
       };
     }));
     console.log('[AppContext] updateBookingItemStatus:', bookingId, itemIndex, status);

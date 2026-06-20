@@ -2,10 +2,21 @@ import { Product, PickupTimeSlot } from '../types/product';
 import { generateId } from '../utils';
 
 export const defaultPickupSlots: PickupTimeSlot[] = [
-  { id: generateId(), label: '上午场 9:00-11:00', startTime: '09:00', endTime: '11:00' },
-  { id: generateId(), label: '下午场 14:00-16:00', startTime: '14:00', endTime: '16:00' },
-  { id: generateId(), label: '傍晚场 16:00-18:00', startTime: '16:00', endTime: '18:00' }
+  { id: 'slot_morning', label: '上午场 9:00-11:00', startTime: '09:00', endTime: '11:00' },
+  { id: 'slot_afternoon', label: '下午场 14:00-16:00', startTime: '14:00', endTime: '16:00' },
+  { id: 'slot_evening', label: '傍晚场 16:00-18:00', startTime: '16:00', endTime: '18:00' }
 ];
+
+export const findSlotByLabel = (label: string): PickupTimeSlot | undefined => {
+  return defaultPickupSlots.find(s => s.label === label);
+};
+
+export const normalizePickupSlots = (slots: PickupTimeSlot[]): PickupTimeSlot[] => {
+  return slots.map(slot => {
+    const match = findSlotByLabel(slot.label);
+    return match || slot;
+  });
+};
 
 export const mockProducts: Product[] = [
   {

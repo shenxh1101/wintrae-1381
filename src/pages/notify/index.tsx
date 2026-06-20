@@ -17,6 +17,8 @@ const NotifyPage: React.FC = () => {
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
+  const [historyTypeFilter, setHistoryTypeFilter] = useState<NotificationType | 'all'>('all');
+  const [historyTargetFilter, setHistoryTargetFilter] = useState<NotificationTarget | 'all'>('all');
 
   useDidShow(() => {
     console.log('[Notify] didShow');
@@ -211,6 +213,46 @@ const NotifyPage: React.FC = () => {
     return map[type];
   };
 
+  const filteredNotifications = useMemo(() => {
+    return notifications.filter(n => {
+      if (historyTypeFilter !== 'all' && n.type !== historyTypeFilter) return false;
+      if (historyTargetFilter !== 'all' && n.target !== historyTargetFilter) return false;
+      return true;
+    });
+  }, [notifications, historyTypeFilter, historyTargetFilter]);
+
+  const historyTypeTabs = useMemo(() => {
+    const tabs: Array<{ key: NotificationType | 'all'; label: string; count: number }> = [
+      { key: 'all', label: '全部', count: notifications.length }
+    ];
+    (['open', 'outOfStock', 'close', 'custom'] as NotificationType[]).forEach(t => {
+      tabs.push({ key: t, label: notificationTypeLabels[t], count: notifications.filter(n => n.type === t).length });
+    });
+    return tabs;
+  }, [notifications]);
+
+  const historyTargetTabs = useMemo(() => {
+    const tabs: Array<{ key: NotificationTarget | 'all'; label: string; count: number }> = [
+      { key: 'all', label: '全部对象', count: notifications.length }
+    ];
+    (['all', 'pending', 'picked', 'specific'] as NotificationTarget[]).forEach(t => {
+      const c = notifications.filter(n => n.target === t).length;
+      if (c > 0 || t !== 'all') {
+        const exists = tabs.find(tab => tab.key === t);
+        if (!exists) {
+          tabs.push({ key: t, label: notificationTargetLabels[t], count: c });
+        } else {
+          exists.count = notifications.length;
+        }
+      }
+    });
+    return tabs;
+  }, [notifications]);
+
+  const openNotificationDetail = (id: string) => {
+    Taro.navigateTo({ url: `/pages/notification-detail/index?id=${id}` });
+  };
+
   return (
     <View className={styles.page}>
       <View className="pageContainer">
@@ -323,10 +365,46 @@ const NotifyPage: React.FC = () => {
 
         <View className={styles.historySection}>
           <Text className={styles.sectionTitle}>发送记录</Text>
+          <View className={styles.filterTabsRow}>
+            <ScrollView scrollX className={styles.filterTabsScroll}>
+              <View className={styles.filterTabs}>
+                {historyTypeTabs.map(tab => (
+                  <View
+                    key={tab.key}
+                    className={`${styles.filterTab} ${historyTypeFilter === tab.key ? styles.filterTabActive : ''}`}
+                    onClick={() => setHistoryTypeFilter(tab.key)}
+                  >
+                    <Text>{tab.label}</Text>
+                    {tab.count > 0 && (
+                      <Text className={`${styles.filterTabCount} ${historyTypeFilter === tab.key ? styles.filterTabCountActive : ''}`}>
+                        {tab.count}
+                      </Text>
+                    )}
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+          <View className={styles.filterTabsRow}>
+            <View className={styles.filterTabs}>
+              {historyTargetTabs.map(tab => (
+                <View
+                  key={tab.key}
+                  className={`${styles.filterTab} ${styles.filterTabSmall} ${historyTargetFilter === tab.key ? styles.filterTabActive : ''}`}
+                  onClick={() => setHistoryTargetFilter(tab.key)}
+                >
+                  <Text>{tab.label}</Text>
+                  <Text className={`${styles.filterTabCount} ${historyTargetFilter === tab.key ? styles.filterTabCountActive : ''}`}>
+                    {tab.count}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
           <ScrollView scrollY style={{ maxHeight: '600rpx' }}>
-            {notifications.length > 0 ? (
-              notifications.map(record => (
-                <View key={record.id} className={styles.historyItem}>
+            {filteredNotifications.length > 0 ? (
+              filteredNotifications.map(record => (
+                <View key={record.id} className={styles.historyItem} onClick={() => openNotificationDetail(record.id)}>
                   <View className={`${styles.historyTypeBar} ${getTypeColorClass(record.type)}`} />
                   <View className={styles.historyHeader}>
                     <Text className={styles.historyTitle}>{record.title}</Text>
@@ -351,12 +429,15 @@ const NotifyPage: React.FC = () => {
                         {timeAgo(record.sentAt)}
                       </Text>
                     </View>
-                    <Button
-                      className={styles.resendBtn}
-                      onClick={() => handleResend(record)}
-                    >
-                      再次发送
-                    </Button>
+                    <View className={styles.historyActions}>
+                      <Text className={styles.viewDetailBtn}>查看详情 →</Text>
+                      <Button
+                        className={styles.resendBtn}
+                        onClick={(e) => { e.stopPropagation(); handleResend(record); }}
+                      >
+                        再次发送
+                      </Button>
+                    </View>
                   </View>
                 </View>
               ))
@@ -364,7 +445,11 @@ const NotifyPage: React.FC = () => {
               <View style={{ padding: '80rpx 0', textAlign: 'center' }}>
                 <Text style={{ fontSize: '100rpx', opacity: 0.5 }}>📭</Text>
                 <View style={{ height: '24rpx' }} />
-                <Text style={{ fontSize: '28rpx', color: '#86909C' }}>暂无发送记录</Text>
+                <Text style={{ fontSize: '28rpx', color: '#86909C' }}>
+                  {(historyTypeFilter !== 'all' || historyTargetFilter !== 'all')
+                    ? '当前筛选条件下暂无记录'
+                    : '暂无发送记录'}
+                </Text>
               </View>
             )}
           </ScrollView>

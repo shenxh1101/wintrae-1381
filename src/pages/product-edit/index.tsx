@@ -3,7 +3,7 @@ import { View, Text, Input, Textarea, Image, Switch } from '@tarojs/components';
 import Taro, { useRouter, useDidShow } from '@tarojs/taro';
 import { useApp } from '../../store/AppContext';
 import { ProductCategory, categoryLabels, ProductSpec, PickupTimeSlot } from '../../types/product';
-import { defaultPickupSlots } from '../../data/products';
+import { defaultPickupSlots, normalizePickupSlots } from '../../data/products';
 import { generateId } from '../../utils';
 import styles from './index.module.scss';
 
@@ -32,7 +32,7 @@ const ProductEditPage: React.FC = () => {
   const [specs, setSpecs] = useState<SpecForm[]>([
     { id: generateId(), name: '', price: '', stock: '' }
   ]);
-  const [selectedSlots, setSelectedSlots] = useState<string[]>(defaultPickupSlots.map(s => s.id));
+  const [selectedSlots, setSelectedSlots] = useState<string[]>(defaultPickupSlots.map(s => s.label));
   const [isLimited, setIsLimited] = useState(false);
   const [isOnSale, setIsOnSale] = useState(true);
   const [focusedSpecId, setFocusedSpecId] = useState<string | null>(null);
@@ -49,7 +49,7 @@ const ProductEditPage: React.FC = () => {
         price: String(s.price),
         stock: String(s.stock)
       })));
-      setSelectedSlots(existingProduct.pickupSlots.map(s => s.id));
+      setSelectedSlots(existingProduct.pickupSlots.map(s => s.label));
       setIsLimited(existingProduct.isLimited);
       setIsOnSale(existingProduct.isOnSale);
     }
@@ -86,12 +86,12 @@ const ProductEditPage: React.FC = () => {
     ));
   };
 
-  const handleToggleSlot = (slotId: string) => {
+  const handleToggleSlot = (slotLabel: string) => {
     setSelectedSlots(prev => {
-      if (prev.includes(slotId)) {
-        return prev.filter(id => id !== slotId);
+      if (prev.includes(slotLabel)) {
+        return prev.filter(l => l !== slotLabel);
       }
-      return [...prev, slotId];
+      return [...prev, slotLabel];
     });
   };
 
@@ -151,8 +151,8 @@ const ProductEditPage: React.FC = () => {
           : Number(s.stock)
       }));
 
-    const pickupSlots: PickupTimeSlot[] = defaultPickupSlots.filter(
-      s => selectedSlots.includes(s.id)
+    const pickupSlots: PickupTimeSlot[] = normalizePickupSlots(
+      defaultPickupSlots.filter(s => selectedSlots.includes(s.label))
     );
 
     const productData = {
@@ -340,15 +340,15 @@ const ProductEditPage: React.FC = () => {
             {defaultPickupSlots.map(slot => (
               <View
                 key={slot.id}
-                className={`${styles.slotItem} ${selectedSlots.includes(slot.id) ? styles.slotItemActive : ''}`}
-                onClick={() => handleToggleSlot(slot.id)}
+                className={`${styles.slotItem} ${selectedSlots.includes(slot.label) ? styles.slotItemActive : ''}`}
+                onClick={() => handleToggleSlot(slot.label)}
               >
-                <View className={`${styles.slotCheckbox} ${selectedSlots.includes(slot.id) ? styles.slotCheckboxActive : ''}`}>
-                  {selectedSlots.includes(slot.id) && (
+                <View className={`${styles.slotCheckbox} ${selectedSlots.includes(slot.label) ? styles.slotCheckboxActive : ''}`}>
+                  {selectedSlots.includes(slot.label) && (
                     <Text className={styles.slotCheckIcon}>✓</Text>
                   )}
                 </View>
-                <Text className={`${styles.slotLabel} ${selectedSlots.includes(slot.id) ? styles.slotLabelActive : ''}`}>
+                <Text className={`${styles.slotLabel} ${selectedSlots.includes(slot.label) ? styles.slotLabelActive : ''}`}>
                   {slot.label}
                 </Text>
               </View>

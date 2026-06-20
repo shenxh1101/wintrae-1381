@@ -103,7 +103,14 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, showActions = true, 
       <View className={styles.footer}>
         <Text className={styles.amount}>
           <Text className={styles.amountLabel}>合计</Text>
-          {formatCurrency(booking.totalAmount)}
+          {booking.refundedAmount && booking.refundedAmount > 0 ? (
+            <>
+              <Text className={styles.amountValue}>{formatCurrency(booking.actualAmount ?? booking.totalAmount - booking.refundedAmount)}</Text>
+              <Text className={styles.amountOriginal}> {formatCurrency(booking.totalAmount)}</Text>
+            </>
+          ) : (
+            <Text className={styles.amountValue}>{formatCurrency(booking.totalAmount)}</Text>
+          )}
         </Text>
         {showActions && (
           <View className={styles.actions}>

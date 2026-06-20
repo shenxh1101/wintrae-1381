@@ -48,7 +48,13 @@ const BookingsPage: React.FC = () => {
   const filteredBookings = useMemo(() => {
     return bookings
       .filter(b => {
-        if (statusFilter !== 'all' && b.status !== statusFilter) return false;
+        if (statusFilter !== 'all') {
+          if (statusFilter === 'refund') {
+            if (b.status !== 'refund' && b.status !== 'cancelled') return false;
+          } else if (b.status !== statusFilter) {
+            return false;
+          }
+        }
         if (slotFilter !== 'all' && b.pickupSlotLabel !== slotFilter) return false;
         if (searchText) {
           const search = searchText.toLowerCase();
@@ -99,13 +105,15 @@ const BookingsPage: React.FC = () => {
     Taro.switchTab({ url: '/pages/notify/index' });
   };
 
-  const statusTabs: Array<{ key: StatusFilter; label: string; count: number }> = [
-    { key: 'all', label: '全部', count: summary.total },
-    { key: 'pending', label: statusLabels.pending, count: summary.pending },
-    { key: 'partial', label: statusLabels.partial, count: summary.partial },
-    { key: 'picked', label: '已完成', count: summary.picked },
-    { key: 'refund', label: '退款/取消', count: summary.refund }
+  const statusTabs: Array<{ key: StatusFilter; label: string; count: number; emptyText: string; emptyIcon: string }> = [
+    { key: 'all', label: '全部', count: summary.total, emptyText: '暂无订单数据', emptyIcon: '📦' },
+    { key: 'pending', label: statusLabels.pending, count: summary.pending, emptyText: '太棒了！暂无待取货订单', emptyIcon: '🌿' },
+    { key: 'partial', label: statusLabels.partial, count: summary.partial, emptyText: '暂无部分取货订单', emptyIcon: '📋' },
+    { key: 'picked', label: '已完成', count: summary.picked, emptyText: '暂无已完成订单', emptyIcon: '✅' },
+    { key: 'refund', label: '退款/取消', count: summary.refund, emptyText: '暂无退款或取消订单', emptyIcon: '💰' }
   ];
+
+  const currentTab = statusTabs.find(t => t.key === statusFilter) || statusTabs[0];
 
   return (
     <View className={styles.page}>
@@ -199,8 +207,13 @@ const BookingsPage: React.FC = () => {
               ))
             ) : (
               <View className={styles.emptyState}>
-                <Text className={styles.emptyIcon}>📦</Text>
-                <Text className={styles.emptyText}>暂无符合条件的订单</Text>
+                <Text className={styles.emptyIcon}>{currentTab.emptyIcon}</Text>
+                <Text className={styles.emptyText}>{currentTab.emptyText}</Text>
+                {(slotFilter !== 'all' || searchText.trim()) && (
+                  <Text style={{ fontSize: '24rpx', color: '#86909C', marginTop: '12rpx' }}>
+                    可尝试清除搜索或时段筛选条件
+                  </Text>
+                )}
               </View>
             )}
           </ScrollView>
