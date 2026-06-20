@@ -1,0 +1,250 @@
+@use '@/styles/variables.scss' as *;
+
+.productCard {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  box-shadow: $shadow-card;
+  margin-bottom: $spacing-md;
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.98);
+    box-shadow: $shadow-card-hover;
+  }
+}
+
+.header {
+  display: flex;
+  margin-bottom: $spacing-md;
+}
+
+.image {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: $radius-md;
+  flex-shrink: 0;
+  margin-right: $spacing-md;
+  background: $color-divider;
+}
+
+.info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.topRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.name {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  @include text-ellipsis;
+  flex: 1;
+  margin-right: $spacing-sm;
+}
+
+.categoryTag {
+  padding: 4rpx 12rpx;
+  border-radius: $radius-xs;
+  font-size: $font-size-xs;
+  color: $color-text-white;
+  flex-shrink: 0;
+}
+
+.limitedTag {
+  padding: 4rpx 12rpx;
+  border-radius: $radius-xs;
+  font-size: $font-size-xs;
+  background: $color-error;
+  color: $color-text-white;
+  margin-left: $spacing-xs;
+  flex-shrink: 0;
+}
+
+.offTag {
+  padding: 4rpx 12rpx;
+  border-radius: $radius-xs;
+  font-size: $font-size-xs;
+  background: $color-text-tertiary;
+  color: $color-text-white;
+  margin-left: $spacing-xs;
+  flex-shrink: 0;
+}
+
+.tagRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: $spacing-xs;
+}
+
+.description {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  margin-top: $spacing-xs;
+  @include text-ellipsis-multi(2);
+}
+
+.specsContainer {
+  border-top: 1rpx solid $color-divider;
+  padding-top: $spacing-md;
+}
+
+.specsTitle {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+  margin-bottom: $spacing-sm;
+}
+
+.specItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-sm 0;
+  border-bottom: 1rpx solid $color-divider;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.specLeft {
+  flex: 1;
+  min-width: 0;
+}
+
+.specName {
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  @include text-ellipsis;
+}
+
+.specPrice {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-price;
+}
+
+.specStock {
+  display: flex;
+  align-items: center;
+  margin-top: $spacing-xs;
+}
+
+.stockText {
+  font-size: $font-size-xs;
+}
+
+.stockNormal {
+  color: $color-success;
+}
+
+.stockWarn {
+  color: $color-stock-warn;
+}
+
+.stockOut {
+  color: $color-stock-out;
+}
+
+.specActions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-left: $spacing-md;
+}
+
+.stockBtn {
+  @include button-reset;
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: $radius-round;
+  background: $color-primary-bg;
+  color: $color-primary;
+  font-size: $font-size-lg;
+  line-height: 1;
+  padding: 0;
+
+  &:active {
+    opacity: 0.8;
+    transform: scale(0.9);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+  }
+}
+
+.stockInput {
+  width: 80rpx;
+  height: 56rpx;
+  border-radius: $radius-sm;
+  background: $color-bg-page;
+  text-align: center;
+  font-size: $font-size-md;
+  color: $color-text-primary;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: $spacing-md;
+  padding-top: $spacing-md;
+  border-top: 1rpx solid $color-divider;
+}
+
+.salesInfo {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.btn {
+  @include button-reset;
+  padding: 0 $spacing-lg;
+  height: 64rpx;
+  border-radius: $radius-button;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  white-space: nowrap;
+
+  &:active {
+    opacity: 0.85;
+    transform: scale(0.97);
+  }
+}
+
+.btnOutline {
+  background: transparent;
+  border: 1rpx solid $color-border;
+  color: $color-text-secondary;
+}
+
+.btnPrimary {
+  background: $color-primary;
+  color: $color-text-white;
+}
+
+.btnSecondary {
+  background: $color-secondary;
+  color: $color-text-white;
+}
+
+.btnGray {
+  background: $color-text-tertiary;
+  color: $color-text-white;
+}

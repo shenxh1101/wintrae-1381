@@ -1,0 +1,36 @@
+@use '@/styles/variables.scss' as *;
+
+.statusTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6rpx 16rpx;
+  border-radius: $radius-xs;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  white-space: nowrap;
+}
+
+.pending {
+  background: rgba(255, 152, 0, 0.1);
+  color: #FF9800;
+}
+
+.picked {
+  background: rgba(76, 175, 80, 0.1);
+  color: #4CAF50;
+}
+
+.partial {
+  background: rgba(33, 150, 243, 0.1);
+  color: #2196F3;
+}
+
+.refund {
+  background: rgba(244, 67, 54, 0.1);
+  color: #F44336;
+}
+
+.cancelled {
+  background: rgba(158, 158, 158, 0.1);
+  color: #9E9E9E;
+}

@@ -1,0 +1,102 @@
+@use '@/styles/variables.scss' as *;
+
+.statCard {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  box-shadow: $shadow-card;
+  position: relative;
+  overflow: hidden;
+}
+
+.statCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4rpx;
+  background: linear-gradient(90deg, $color-primary 0%, $color-primary-light 100%);
+  opacity: 0;
+  transition: opacity $transition-base;
+}
+
+.statCardOrange::before {
+  background: linear-gradient(90deg, $color-secondary 0%, $color-secondary-light 100%);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  margin-bottom: $spacing-md;
+}
+
+.iconBox {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: $spacing-sm;
+  font-size: $font-size-lg;
+}
+
+.iconGreen {
+  background: $color-primary-bg;
+}
+
+.iconOrange {
+  background: $color-secondary-bg;
+}
+
+.label {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+}
+
+.value {
+  font-size: 48rpx;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+  line-height: 1.2;
+  margin-bottom: $spacing-xs;
+}
+
+.suffix {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  font-weight: $font-weight-normal;
+  margin-left: $spacing-xs;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.subText {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.trendUp {
+  display: inline-flex;
+  align-items: center;
+  padding: 4rpx 12rpx;
+  background: rgba(0, 180, 42, 0.1);
+  color: $color-success;
+  font-size: $font-size-xs;
+  border-radius: $radius-xs;
+}
+
+.trendDown {
+  display: inline-flex;
+  align-items: center;
+  padding: 4rpx 12rpx;
+  background: rgba(245, 63, 63, 0.1);
+  color: $color-error;
+  font-size: $font-size-xs;
+  border-radius: $radius-xs;
+}

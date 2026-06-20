@@ -1,0 +1,335 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  min-height: 100vh;
+}
+
+.heroSection {
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-dark 100%);
+  margin: 0 (-$page-padding);
+  padding: 48rpx $page-padding 80rpx;
+  position: relative;
+  overflow: hidden;
+}
+
+.heroSection::before {
+  content: '';
+  position: absolute;
+  top: -100rpx;
+  right: -100rpx;
+  width: 300rpx;
+  height: 300rpx;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+}
+
+.heroTitle {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $color-text-white;
+  margin-bottom: $spacing-xs;
+}
+
+.heroSubtitle {
+  font-size: $font-size-sm;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.revenueBox {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10);
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-top: $spacing-lg;
+  border: 1rpx solid rgba(255, 255, 255, 0.2);
+}
+
+.revenueLabel {
+  font-size: $font-size-sm;
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: $spacing-sm;
+}
+
+.revenueValue {
+  font-size: 64rpx;
+  font-weight: $font-weight-bold;
+  color: $color-text-white;
+  line-height: 1;
+  margin-bottom: $spacing-sm;
+}
+
+.revenueUnit {
+  font-size: $font-size-md;
+  font-weight: $font-weight-normal;
+  opacity: 0.8;
+}
+
+.revenueMeta {
+  display: flex;
+  justify-content: space-between;
+}
+
+.revenueMetaItem {
+  font-size: $font-size-xs;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.revenueTrend {
+  display: inline-flex;
+  align-items: center;
+  padding: 4rpx 12rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: $radius-xs;
+  font-size: $font-size-xs;
+  color: $color-text-white;
+  margin-left: $spacing-xs;
+}
+
+.contentSection {
+  margin-top: -40rpx;
+  position: relative;
+  z-index: 1;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $spacing-md;
+  margin-bottom: $spacing-md;
+}
+
+.quickActions {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  box-shadow: $shadow-card;
+  margin-bottom: $spacing-md;
+}
+
+.quickActionsTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-md;
+}
+
+.quickActionsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: $spacing-md;
+}
+
+.actionItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+.actionIcon {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: $radius-lg;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+  margin-bottom: $spacing-sm;
+}
+
+.actionGreen {
+  background: $color-primary-bg;
+}
+
+.actionOrange {
+  background: $color-secondary-bg;
+}
+
+.actionBlue {
+  background: rgba(33, 150, 243, 0.1);
+}
+
+.actionPurple {
+  background: rgba(156, 39, 176, 0.1);
+}
+
+.actionLabel {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+  text-align: center;
+}
+
+.hotList {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  box-shadow: $shadow-card;
+  margin-bottom: $spacing-md;
+}
+
+.hotItem {
+  display: flex;
+  align-items: center;
+  padding: $spacing-md 0;
+  border-bottom: 1rpx solid $color-divider;
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  &:first-child {
+    padding-top: 0;
+  }
+}
+
+.rankBadge {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: $radius-sm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-bold;
+  margin-right: $spacing-md;
+  flex-shrink: 0;
+}
+
+.rank1 {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  color: $color-text-white;
+}
+
+.rank2 {
+  background: linear-gradient(135deg, #C0C0C0 0%, #A0A0A0 100%);
+  color: $color-text-white;
+}
+
+.rank3 {
+  background: linear-gradient(135deg, #CD7F32 0%, #A0522D 100%);
+  color: $color-text-white;
+}
+
+.rankOther {
+  background: $color-bg-hover;
+  color: $color-text-tertiary;
+}
+
+.hotImage {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: $radius-sm;
+  background: $color-bg-page;
+  margin-right: $spacing-md;
+  flex-shrink: 0;
+}
+
+.hotInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.hotName {
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  font-weight: $font-weight-medium;
+  @include text-ellipsis;
+  margin-bottom: 4rpx;
+}
+
+.hotCategory {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.hotStats {
+  text-align: right;
+  flex-shrink: 0;
+  margin-left: $spacing-md;
+}
+
+.hotSold {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-primary;
+}
+
+.hotSoldUnit {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-normal;
+  color: $color-text-tertiary;
+}
+
+.hotRevenue {
+  font-size: $font-size-xs;
+  color: $color-price;
+  margin-top: 4rpx;
+}
+
+.chartSection {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  box-shadow: $shadow-card;
+  margin-bottom: $spacing-md;
+}
+
+.chartTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-lg;
+}
+
+.chartContainer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 240rpx;
+  padding: $spacing-sm 0;
+}
+
+.chartBar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  margin: 0 8rpx;
+}
+
+.barWrapper {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: $spacing-sm;
+}
+
+.bar {
+  width: 36rpx;
+  background: linear-gradient(180deg, $color-primary-light 0%, $color-primary 100%);
+  border-radius: $radius-xs $radius-xs 0 0;
+  transition: height $transition-slow;
+  position: relative;
+}
+
+.barValue {
+  position: absolute;
+  top: -36rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 20rpx;
+  color: $color-text-secondary;
+  white-space: nowrap;
+}
+
+.barLabel {
+  font-size: 20rpx;
+  color: $color-text-tertiary;
+}
