@@ -19,15 +19,17 @@
 }
 
 .statusTabs {
-  display: flex;
+  display: inline-flex;
   background: rgba(255, 255, 255, 0.15);
   border-radius: $radius-button;
   padding: 8rpx;
   margin-bottom: $spacing-md;
+  gap: 8rpx;
 }
 
 .statusTab {
-  flex: 1;
+  min-width: 140rpx;
+  padding: 0 16rpx;
   height: 72rpx;
   display: flex;
   align-items: center;
@@ -37,6 +39,7 @@
   color: rgba(255, 255, 255, 0.85);
   transition: all $transition-base;
   position: relative;
+  flex-shrink: 0;
 }
 
 .statusTabActive {
@@ -120,16 +123,17 @@
   box-shadow: $shadow-card;
   margin-bottom: $spacing-md;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: $spacing-md;
+  grid-template-columns: repeat(5, 1fr);
+  gap: $spacing-sm;
 }
 
 .summaryItem {
+  min-width: 0;
   text-align: center;
 }
 
 .summaryNum {
-  font-size: $font-size-xl;
+  font-size: $font-size-lg;
   font-weight: $font-weight-bold;
   color: $color-text-primary;
   margin-bottom: 4rpx;

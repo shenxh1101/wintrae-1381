@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import Taro from '@tarojs/taro';
 import { Product } from '../types/product';
 import { Booking } from '../types/booking';
 import { NotificationRecord } from '../types/notification';
@@ -6,6 +7,13 @@ import { mockProducts } from '../data/products';
 import { mockBookings } from '../data/bookings';
 import { mockNotificationRecords } from '../data/notifications';
 import { generateId } from '../utils';
+
+const STORAGE_KEYS = {
+  products: 'fm_products_v1',
+  bookings: 'fm_bookings_v1',
+  notifications: 'fm_notifications_v1',
+  initialized: 'fm_initialized_v1'
+};
 
 interface AppState {
   products: Product[];
@@ -21,14 +29,81 @@ interface AppContextType extends AppState {
   updateBookingStatus: (id: string, status: Booking['status'], remark?: string) => void;
   updateBookingItemStatus: (bookingId: string, itemIndex: number, status: 'normal' | 'exchanged' | 'refunded', exchangedItem?: string) => void;
   addNotification: (notification: Omit<NotificationRecord, 'id' | 'sentAt' | 'status'>) => void;
+  resetAllData: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const loadFromStorage = <T>(key: string, fallback: T): T => {
+  try {
+    const raw = Taro.getStorageSync(key);
+    if (raw && typeof raw === 'string' && raw.length > 0) {
+      return JSON.parse(raw) as T;
+    }
+    return fallback;
+  } catch (e) {
+    console.warn('[AppContext] load storage fail:', key, e);
+    return fallback;
+  }
+};
+
+const saveToStorage = <T>(key: string, value: T) => {
+  try {
+    Taro.setStorageSync(key, JSON.stringify(value));
+  } catch (e) {
+    console.warn('[AppContext] save storage fail:', key, e);
+  }
+};
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [initialized, setInitialized] = useState(false);
   const [products, setProducts] = useState<Product[]>(mockProducts);
   const [bookings, setBookings] = useState<Booking[]>(mockBookings);
   const [notifications, setNotifications] = useState<NotificationRecord[]>(mockNotificationRecords);
+
+  useEffect(() => {
+    try {
+      const isInited = Taro.getStorageSync(STORAGE_KEYS.initialized);
+      if (isInited === true || isInited === 'true') {
+        const savedProducts = loadFromStorage<Product[]>(STORAGE_KEYS.products, mockProducts);
+        const savedBookings = loadFromStorage<Booking[]>(STORAGE_KEYS.bookings, mockBookings);
+        const savedNotifications = loadFromStorage<NotificationRecord[]>(STORAGE_KEYS.notifications, mockNotificationRecords);
+        setProducts(savedProducts);
+        setBookings(savedBookings);
+        setNotifications(savedNotifications);
+        console.log('[AppContext] restored from storage', {
+          products: savedProducts.length,
+          bookings: savedBookings.length,
+          notifications: savedNotifications.length
+        });
+      } else {
+        saveToStorage(STORAGE_KEYS.products, mockProducts);
+        saveToStorage(STORAGE_KEYS.bookings, mockBookings);
+        saveToStorage(STORAGE_KEYS.notifications, mockNotificationRecords);
+        Taro.setStorageSync(STORAGE_KEYS.initialized, true);
+        console.log('[AppContext] initialized with mock data');
+      }
+    } catch (e) {
+      console.warn('[AppContext] init failed, using mocks:', e);
+    } finally {
+      setInitialized(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!initialized) return;
+    saveToStorage(STORAGE_KEYS.products, products);
+  }, [products, initialized]);
+
+  useEffect(() => {
+    if (!initialized) return;
+    saveToStorage(STORAGE_KEYS.bookings, bookings);
+  }, [bookings, initialized]);
+
+  useEffect(() => {
+    if (!initialized) return;
+    saveToStorage(STORAGE_KEYS.notifications, notifications);
+  }, [notifications, initialized]);
 
   const addProduct = useCallback((productData) => {
     const newProduct: Product = {
@@ -38,7 +113,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updatedAt: new Date().toISOString(),
       salesCount: 0
     };
-    setProducts(prev => [newProduct, ...prev]);
+    setProducts(prev => {
+      const next = [newProduct, ...prev];
+      return next;
+    });
     console.log('[AppContext] addProduct:', newProduct.name);
   }, []);
 
@@ -75,7 +153,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (b.id !== id) return b;
       const log = {
         id: generateId(),
-        action: status === 'picked' ? '确认取货' : status === 'refund' ? '退款处理' : '状态变更',
+        action: status === 'picked' ? '确认取货' : status === 'refund' ? '退款处理' : status === 'partial' ? '部分取货' : status === 'cancelled' ? '订单取消' : '状态变更',
         operator: '摊主',
         timestamp: new Date().toISOString(),
         detail: remark
@@ -84,7 +162,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ...b,
         status,
         remark: remark || b.remark,
-        pickedAt: status === 'picked' ? new Date().toISOString() : b.pickedAt,
+        pickedAt: (status === 'picked' || status === 'partial') ? new Date().toISOString() : b.pickedAt,
         operationLogs: [...b.operationLogs, log]
       };
     }));
@@ -120,8 +198,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       status: 'success'
     };
     setNotifications(prev => [newNotification, ...prev]);
-    console.log('[AppContext] addNotification:', newNotification.title);
+    console.log('[AppContext] addNotification:', newNotification.title, 'to', notificationData.targetCount, 'people');
   }, []);
+
+  const resetAllData = useCallback(() => {
+    Taro.showModal({
+      title: '重置数据',
+      content: '确认将所有商品、订单、通知数据重置为初始演示状态？此操作不可撤销。',
+      confirmColor: '#F44336',
+      success: (res) => {
+        if (res.confirm) {
+          setProducts(mockProducts);
+          setBookings(mockBookings);
+          setNotifications(mockNotificationRecords);
+          Taro.setStorageSync(STORAGE_KEYS.initialized, false);
+          setTimeout(() => {
+            Taro.setStorageSync(STORAGE_KEYS.initialized, true);
+          }, 0);
+          Taro.showToast({ title: '已重置为初始数据', icon: 'success' });
+        }
+      }
+    });
+  }, []);
+
+  if (!initialized) {
+    return null;
+  }
 
   return (
     <AppContext.Provider value={{
@@ -134,7 +236,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updateSpecStock,
       updateBookingStatus,
       updateBookingItemStatus,
-      addNotification
+      addNotification,
+      resetAllData
     }}>
       {children}
     </AppContext.Provider>

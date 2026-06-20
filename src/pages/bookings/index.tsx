@@ -33,8 +33,9 @@ const BookingsPage: React.FC = () => {
     return {
       total: bookings.length,
       pending: bookings.filter(b => b.status === 'pending').length,
-      picked: bookings.filter(b => b.status === 'picked' || b.status === 'partial').length,
-      refund: bookings.filter(b => b.status === 'refund').length
+      partial: bookings.filter(b => b.status === 'partial').length,
+      picked: bookings.filter(b => b.status === 'picked').length,
+      refund: bookings.filter(b => b.status === 'refund' || b.status === 'cancelled').length
     };
   }, [bookings]);
 
@@ -60,8 +61,16 @@ const BookingsPage: React.FC = () => {
         return true;
       })
       .sort((a, b) => {
-        if (a.status === 'pending' && b.status !== 'pending') return -1;
-        if (a.status !== 'pending' && b.status === 'pending') return 1;
+        const statusPriority: Record<BookingStatus, number> = {
+          pending: 0,
+          partial: 1,
+          picked: 2,
+          refund: 3,
+          cancelled: 4
+        };
+        const pa = statusPriority[a.status];
+        const pb = statusPriority[b.status];
+        if (pa !== pb) return pa - pb;
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
   }, [bookings, statusFilter, slotFilter, searchText]);
@@ -93,8 +102,9 @@ const BookingsPage: React.FC = () => {
   const statusTabs: Array<{ key: StatusFilter; label: string; count: number }> = [
     { key: 'all', label: '全部', count: summary.total },
     { key: 'pending', label: statusLabels.pending, count: summary.pending },
+    { key: 'partial', label: statusLabels.partial, count: summary.partial },
     { key: 'picked', label: '已完成', count: summary.picked },
-    { key: 'refund', label: statusLabels.refund, count: summary.refund }
+    { key: 'refund', label: '退款/取消', count: summary.refund }
   ];
 
   return (
@@ -108,18 +118,20 @@ const BookingsPage: React.FC = () => {
             placeholder="搜索姓名/取货码/手机号..."
           />
           <View style={{ height: '24rpx' }} />
-          <View className={styles.statusTabs}>
-            {statusTabs.map(tab => (
-              <View
-                key={tab.key}
-                className={`${styles.statusTab} ${statusFilter === tab.key ? styles.statusTabActive : ''}`}
-                onClick={() => setStatusFilter(tab.key)}
-              >
-                {tab.label}
-                <Text className={styles.tabCount}>{tab.count}</Text>
-              </View>
-            ))}
-          </View>
+          <ScrollView scrollX style={{ width: '100%', whiteSpace: 'nowrap' }}>
+            <View className={styles.statusTabs}>
+              {statusTabs.map(tab => (
+                <View
+                  key={tab.key}
+                  className={`${styles.statusTab} ${statusFilter === tab.key ? styles.statusTabActive : ''}`}
+                  onClick={() => setStatusFilter(tab.key)}
+                >
+                  {tab.label}
+                  <Text className={styles.tabCount}>{tab.count}</Text>
+                </View>
+              ))}
+            </View>
+          </ScrollView>
           <View className={styles.quickSearch}>
             <Button className={styles.quickBtn} onClick={handleGoVerify}>
               🎯 核销中心
@@ -140,12 +152,16 @@ const BookingsPage: React.FC = () => {
             <Text className={styles.summaryLabel}>待取货</Text>
           </View>
           <View className={styles.summaryItem}>
+            <Text className={`${styles.summaryNum} ${styles.summaryNumBlue}`}>{summary.partial}</Text>
+            <Text className={styles.summaryLabel}>部分取货</Text>
+          </View>
+          <View className={styles.summaryItem}>
             <Text className={`${styles.summaryNum} ${styles.summaryNumGreen}`}>{summary.picked}</Text>
             <Text className={styles.summaryLabel}>已完成</Text>
           </View>
           <View className={styles.summaryItem}>
             <Text className={`${styles.summaryNum} ${styles.summaryNumRed}`}>{summary.refund}</Text>
-            <Text className={styles.summaryLabel}>退款中</Text>
+            <Text className={styles.summaryLabel}>退款/取消</Text>
           </View>
         </View>
 
@@ -171,22 +187,24 @@ const BookingsPage: React.FC = () => {
           </ScrollView>
         )}
 
-        <ScrollView scrollY style={{ height: 'calc(100vh - 620rpx)' }}>
-          {filteredBookings.length > 0 ? (
-            filteredBookings.map(booking => (
-              <BookingCard
-                key={booking.id}
-                booking={booking}
-                onPick={() => handlePick(booking.id)}
-              />
-            ))
-          ) : (
-            <View className={styles.emptyState}>
-              <Text className={styles.emptyIcon}>📦</Text>
-              <Text className={styles.emptyText}>暂无符合条件的订单</Text>
-            </View>
-          )}
-        </ScrollView>
+        <View style={{ height: `calc(100vh - ${statusTabs.length > 4 ? '680' : '620'}rpx)` }}>
+          <ScrollView scrollY style={{ height: '100%' }}>
+            {filteredBookings.length > 0 ? (
+              filteredBookings.map(booking => (
+                <BookingCard
+                  key={booking.id}
+                  booking={booking}
+                  onPick={() => handlePick(booking.id)}
+                />
+              ))
+            ) : (
+              <View className={styles.emptyState}>
+                <Text className={styles.emptyIcon}>📦</Text>
+                <Text className={styles.emptyText}>暂无符合条件的订单</Text>
+              </View>
+            )}
+          </ScrollView>
+        </View>
       </View>
     </View>
   );

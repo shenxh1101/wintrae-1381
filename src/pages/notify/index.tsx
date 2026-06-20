@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, Input, Textarea, Button, ScrollView } from '@tarojs/components';
+import { View, Text, Input, Textarea, Button, ScrollView, Checkbox, CheckboxGroup } from '@tarojs/components';
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro';
 import { useApp } from '../../store/AppContext';
 import { mockTemplates } from '../../data/notifications';
-import { NotificationType, NotificationTarget, notificationTypeLabels, notificationTargetLabels } from '../../types/notification';
+import { NotificationType, NotificationTarget, notificationTypeLabels, notificationTargetLabels, SelectedCustomer } from '../../types/notification';
 import { timeAgo } from '../../utils';
 import styles from './index.module.scss';
 
@@ -14,6 +14,9 @@ const NotifyPage: React.FC = () => {
   const [content, setContent] = useState(mockTemplates[0].content);
   const [target, setTarget] = useState<NotificationTarget>('all');
   const [refreshing, setRefreshing] = useState(false);
+  const [showCustomerPicker, setShowCustomerPicker] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState('');
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
 
   useDidShow(() => {
     console.log('[Notify] didShow');
@@ -28,14 +31,45 @@ const NotifyPage: React.FC = () => {
     }, 800);
   });
 
+  const allCustomers = useMemo<SelectedCustomer[]>(() => {
+    const customerMap = new Map<string, SelectedCustomer>();
+    bookings.forEach(b => {
+      const key = b.customerPhone;
+      if (!customerMap.has(key)) {
+        customerMap.set(key, {
+          customerId: key,
+          customerName: b.customerName,
+          customerPhone: b.customerPhone,
+          bookingId: b.id,
+          pickupCode: b.pickupCode
+        });
+      }
+    });
+    return Array.from(customerMap.values());
+  }, [bookings]);
+
+  const selectedCustomers = useMemo(() => {
+    return allCustomers.filter(c => selectedCustomerIds.includes(c.customerId));
+  }, [allCustomers, selectedCustomerIds]);
+
   const targetCounts = useMemo(() => {
     return {
       all: bookings.length,
-      pending: bookings.filter(b => b.status === 'pending').length,
-      picked: bookings.filter(b => b.status === 'picked' || b.status === 'partial').length,
-      specific: 0
+      pending: bookings.filter(b => b.status === 'pending' || b.status === 'partial').length,
+      picked: bookings.filter(b => b.status === 'picked').length,
+      specific: selectedCustomerIds.length
     };
-  }, [bookings]);
+  }, [bookings, selectedCustomerIds.length]);
+
+  const filteredPickerCustomers = useMemo(() => {
+    if (!pickerSearch.trim()) return allCustomers;
+    const kw = pickerSearch.toLowerCase();
+    return allCustomers.filter(c =>
+      c.customerName.toLowerCase().includes(kw)
+      || c.customerPhone.includes(kw)
+      || c.pickupCode.includes(kw)
+    );
+  }, [allCustomers, pickerSearch]);
 
   const templates = [
     { type: 'open' as NotificationType, icon: '🌿', label: '开摊提醒', desc: '通知顾客今日已开摊，可前往取货' },
@@ -52,12 +86,58 @@ const NotifyPage: React.FC = () => {
       setTitle(tpl.title);
       setContent(tpl.content);
       if (type !== 'custom') {
-        setTarget(tpl.target);
+        if (tpl.target !== 'specific') {
+          setTarget(tpl.target);
+        }
       }
     } else {
       setTitle('');
       setContent('');
     }
+  };
+
+  const handleTargetChange = (t: NotificationTarget) => {
+    setTarget(t);
+    if (t === 'specific' && !showCustomerPicker) {
+      setTimeout(() => setShowCustomerPicker(true), 50);
+    }
+  };
+
+  const toggleCustomer = (customerId: string) => {
+    setSelectedCustomerIds(prev =>
+      prev.includes(customerId)
+        ? prev.filter(id => id !== customerId)
+        : [...prev, customerId]
+    );
+  };
+
+  const toggleAllCustomers = () => {
+    const list = filteredPickerCustomers;
+    const allSelected = list.every(c => selectedCustomerIds.includes(c.customerId));
+    if (allSelected) {
+      const excludeIds = new Set(list.map(c => c.customerId));
+      setSelectedCustomerIds(prev => prev.filter(id => !excludeIds.has(id)));
+    } else {
+      const set = new Set(selectedCustomerIds);
+      list.forEach(c => set.add(c.customerId));
+      setSelectedCustomerIds(Array.from(set));
+    }
+  };
+
+  const openPickerFromChip = () => {
+    if (target !== 'specific') {
+      setTarget('specific');
+    }
+    setTimeout(() => setShowCustomerPicker(true), 50);
+  };
+
+  const handleConfirmPicker = () => {
+    if (selectedCustomerIds.length === 0) {
+      Taro.showToast({ title: '请至少选择一位顾客', icon: 'none' });
+      return;
+    }
+    setShowCustomerPicker(false);
+    Taro.showToast({ title: `已选择 ${selectedCustomerIds.length} 位顾客`, icon: 'success' });
   };
 
   const handleSend = () => {
@@ -70,14 +150,22 @@ const NotifyPage: React.FC = () => {
       Taro.showToast({ title: '请输入消息内容', icon: 'none' });
       return;
     }
-    if (targetCounts[target] === 0 && target !== 'specific') {
-      Taro.showToast({ title: '当前分组暂无顾客', icon: 'none' });
+    if (targetCounts[target] === 0) {
+      if (target === 'specific') {
+        Taro.showToast({ title: '请先选择要发送的顾客', icon: 'none' });
+        setTimeout(() => setShowCustomerPicker(true), 300);
+      } else {
+        Taro.showToast({ title: '当前分组暂无顾客', icon: 'none' });
+      }
       return;
     }
 
+    const finalCount = targetCounts[target];
+    const finalCustomers = target === 'specific' ? selectedCustomers : undefined;
+
     Taro.showModal({
       title: '确认发送',
-      content: `将向「${notificationTargetLabels[target]}」(${targetCounts[target] || '待定'}人) 发送此消息？`,
+      content: `将向「${notificationTargetLabels[target]}」(${finalCount}人) 发送此消息？${target === 'specific' && finalCustomers ? '\n' + finalCustomers.slice(0, 3).map(c => '• ' + c.customerName).join('\n') + (finalCustomers.length > 3 ? `\n等${finalCustomers.length}人` : '') : ''}`,
       confirmText: '确认发送',
       confirmColor: '#9C27B0',
       success: (res) => {
@@ -87,9 +175,10 @@ const NotifyPage: React.FC = () => {
             title: title.trim(),
             content: content.trim(),
             target,
-            targetCount: targetCounts[target]
+            targetCount: finalCount,
+            targetCustomers: finalCustomers
           });
-          Taro.showToast({ title: '发送成功', icon: 'success' });
+          Taro.showToast({ title: `已发送给 ${finalCount} 人`, icon: 'success' });
           if (selectedTemplate !== 'custom') {
             setTitle('');
             setContent('');
@@ -106,6 +195,9 @@ const NotifyPage: React.FC = () => {
     setTitle(record.title);
     setContent(record.content);
     setTarget(record.target);
+    if (record.target === 'specific' && record.targetCustomers) {
+      setSelectedCustomerIds(record.targetCustomers.map(c => c.customerId));
+    }
     Taro.pageScrollTo({ scrollTop: 0, duration: 300 });
   };
 
@@ -182,24 +274,50 @@ const NotifyPage: React.FC = () => {
               {(['all', 'pending', 'picked', 'specific'] as NotificationTarget[]).map(t => (
                 <View
                   key={t}
-                  className={`${styles.targetOption} ${target === t ? styles.targetOptionActive : ''}`}
-                  onClick={() => setTarget(t)}
+                  className={`${styles.targetOption} ${target === t ? styles.targetOptionActive : ''} ${t === 'specific' ? styles.targetOptionSpecial : ''}`}
+                  onClick={() => handleTargetChange(t)}
                 >
-                  {notificationTargetLabels[t]}
-                  {t !== 'specific' && (
-                    <Text className={styles.targetCount}>{targetCounts[t]}人</Text>
+                  <View style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '8rpx' }}>
+                    {notificationTargetLabels[t]}
+                    {t !== 'specific' && (
+                      <Text className={styles.targetCount}>{targetCounts[t]}人</Text>
+                    )}
+                  </View>
+                  {t === 'specific' && (
+                    <Text className={`${styles.targetCount} ${selectedCustomerIds.length > 0 ? styles.targetCountActive : ''}`} style={{ marginLeft: '8rpx' }}>
+                      {selectedCustomerIds.length > 0 ? `已选${selectedCustomerIds.length}人` : '点击选择'}
+                    </Text>
                   )}
                 </View>
               ))}
             </View>
+
+            {target === 'specific' && selectedCustomers.length > 0 && (
+              <View className={styles.selectedChips}>
+                {selectedCustomers.slice(0, 6).map(c => (
+                  <View key={c.customerId} className={styles.customerChip}>
+                    <Text>{c.customerName}</Text>
+                    <Text className={styles.chipRemove} onClick={(e) => { e.stopPropagation(); toggleCustomer(c.customerId); }}>×</Text>
+                  </View>
+                ))}
+                {selectedCustomers.length > 6 && (
+                  <View className={styles.customerChip}>
+                    <Text>+{selectedCustomers.length - 6}</Text>
+                  </View>
+                )}
+                <View className={styles.chipEditBtn} onClick={openPickerFromChip}>
+                  编辑
+                </View>
+              </View>
+            )}
           </View>
 
           <Button
             className={styles.sendBtn}
-            disabled={!title.trim() || !content.trim()}
+            disabled={!title.trim() || !content.trim() || targetCounts[target] === 0}
             onClick={handleSend}
           >
-            📤 发送消息
+            📤 {targetCounts[target] > 0 ? `发送给 ${targetCounts[target]} 人` : '发送消息'}
           </Button>
         </View>
 
@@ -215,6 +333,12 @@ const NotifyPage: React.FC = () => {
                     <Text className={`${styles.statusBadge} ${styles.statusSuccess}`}>✓ 已发送</Text>
                   </View>
                   <Text className={styles.historyContent}>{record.content}</Text>
+                  {record.target === 'specific' && record.targetCustomers && record.targetCustomers.length > 0 && (
+                    <View className={styles.historyReceivers}>
+                      👥 {record.targetCustomers.slice(0, 5).map(c => c.customerName).join('、')}
+                      {record.targetCustomers.length > 5 ? ` 等${record.targetCustomers.length}人` : ''}
+                    </View>
+                  )}
                   <View className={styles.historyMeta}>
                     <View className={styles.metaLeft}>
                       <Text className={styles.metaItem}>
@@ -246,6 +370,85 @@ const NotifyPage: React.FC = () => {
           </ScrollView>
         </View>
       </View>
+
+      {showCustomerPicker && (
+        <View className={styles.modalMask} onClick={() => setShowCustomerPicker(false)}>
+          <View className={styles.modalContent} onClick={e => e.stopPropagation()}>
+            <View className={styles.modalHeader}>
+              <Text className={styles.modalTitle}>选择顾客</Text>
+              <Text className={styles.modalClose} onClick={() => setShowCustomerPicker(false)}>×</Text>
+            </View>
+
+            <View className={styles.modalSearch}>
+              <Input
+                className={styles.modalSearchInput}
+                placeholder="搜索姓名/手机号/取货码..."
+                value={pickerSearch}
+                onInput={e => setPickerSearch(e.detail.value)}
+              />
+            </View>
+
+            <View className={styles.pickerToolbar}>
+              <CheckboxGroup>
+                <Checkbox
+                  value="__all__"
+                  checked={filteredPickerCustomers.length > 0 && filteredPickerCustomers.every(c => selectedCustomerIds.includes(c.customerId))}
+                  onChange={toggleAllCustomers}
+                  color="#9C27B0"
+                />
+                <Text style={{ marginLeft: '12rpx', fontSize: '26rpx', color: '#4E5969' }}>
+                  全选当前 ({filteredPickerCustomers.length})
+                </Text>
+              </CheckboxGroup>
+              <Text style={{ fontSize: '26rpx', color: '#1D2129' }}>
+                已选 <Text style={{ color: '#9C27B0', fontWeight: 600 }}>{selectedCustomerIds.length}</Text> / {allCustomers.length}
+              </Text>
+            </View>
+
+            <ScrollView scrollY style={{ height: '60vh' }}>
+              {filteredPickerCustomers.length > 0 ? (
+                filteredPickerCustomers.map(c => (
+                  <View
+                    key={c.customerId}
+                    className={`${styles.customerItem} ${selectedCustomerIds.includes(c.customerId) ? styles.customerItemActive : ''}`}
+                    onClick={() => toggleCustomer(c.customerId)}
+                  >
+                    <View className={styles.customerAvatar}>
+                      {c.customerName.charAt(0)}
+                    </View>
+                    <View className={styles.customerInfo}>
+                      <Text className={styles.customerName}>{c.customerName}</Text>
+                      <Text className={styles.customerMeta}>
+                        📱 {c.customerPhone} · 取货码 {c.pickupCode}
+                      </Text>
+                    </View>
+                    <View className={`${styles.checkBox} ${selectedCustomerIds.includes(c.customerId) ? styles.checkBoxActive : ''}`}>
+                      {selectedCustomerIds.includes(c.customerId) && <Text style={{ color: '#fff', fontSize: '24rpx', fontWeight: 700 }}>✓</Text>}
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <View style={{ padding: '80rpx 0', textAlign: 'center' }}>
+                  <Text style={{ fontSize: '80rpx', opacity: 0.4 }}>🔍</Text>
+                  <View style={{ height: '16rpx' }} />
+                  <Text style={{ fontSize: '26rpx', color: '#86909C' }}>
+                    {pickerSearch ? '没有匹配的顾客' : '暂无订单顾客数据'}
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+
+            <View className={styles.modalFooter}>
+              <View className={styles.modalCancelBtn} onClick={() => setShowCustomerPicker(false)}>
+                取消
+              </View>
+              <View className={styles.modalConfirmBtn} onClick={handleConfirmPicker}>
+                确认选择 ({selectedCustomerIds.length})
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 };

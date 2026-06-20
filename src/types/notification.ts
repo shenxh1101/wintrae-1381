@@ -10,6 +10,14 @@ export interface NotificationTemplate {
   target: NotificationTarget;
 }
 
+export interface SelectedCustomer {
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  bookingId: string;
+  pickupCode: string;
+}
+
 export interface NotificationRecord {
   id: string;
   templateId?: string;
@@ -18,6 +26,7 @@ export interface NotificationRecord {
   content: string;
   target: NotificationTarget;
   targetCount: number;
+  targetCustomers?: SelectedCustomer[];
   sentAt: string;
   status: 'success' | 'failed' | 'sending';
 }
