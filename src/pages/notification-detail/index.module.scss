@@ -218,6 +218,59 @@
   display: block;
   font-size: $font-size-xs;
   color: $color-text-secondary;
+  margin-bottom: 6rpx;
+}
+
+.snapshotItems {
+  margin-top: 8rpx;
+  padding: 12rpx;
+  background: #fff;
+  border-radius: $radius-sm;
+  border: 1rpx solid $color-divider;
+}
+
+.snapshotItem {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  padding: 6rpx 0;
+  font-size: $font-size-xs;
+
+  & + & {
+    border-top: 1rpx dashed $color-divider;
+  }
+}
+
+.snapshotItemName {
+  color: $color-text-secondary;
+}
+
+.snapshotItemStatus {
+  padding: 2rpx 12rpx;
+  border-radius: $radius-xs;
+  font-size: 20rpx;
+  font-weight: $font-weight-medium;
+}
+
+.statusNormal {
+  background: rgba(76, 175, 80, 0.1);
+  color: #4CAF50;
+}
+
+.statusExchanged {
+  background: rgba(255, 152, 0, 0.1);
+  color: #FF9800;
+}
+
+.statusRefunded {
+  background: rgba(244, 67, 54, 0.1);
+  color: #F44336;
+}
+
+.snapshotExchanged {
+  color: #FF9800;
+  font-size: $font-size-xs;
 }
 
 .customerActions {

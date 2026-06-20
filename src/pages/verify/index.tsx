@@ -32,32 +32,36 @@ const VerifyPage: React.FC = () => {
 
   const pendingBookings = useMemo(() => {
     return bookings
-      .filter(b => b.status === 'pending')
+      .filter(b => b.status === 'pending' || b.status === 'partial')
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [bookings]);
 
   const stats = useMemo(() => {
     return {
-      totalPending: pendingBookings.length,
+      totalPending: bookings.filter(b => b.status === 'pending').length,
+      totalPartial: bookings.filter(b => b.status === 'partial').length,
       todayPicked: bookings.filter(b =>
         b.status === 'picked' &&
         new Date(b.pickedAt || '').toDateString() === new Date().toDateString()
       ).length,
       todayRefund: bookings.filter(b => b.status === 'refund').length
     };
-  }, [bookings, pendingBookings]);
+  }, [bookings]);
 
-  const searchResult: Booking | null = useMemo(() => {
+  const searchResults = useMemo<Booking[]>(() => {
     if (searchMode === 'code') {
-      if (codeInput.length !== 4) return null;
-      return bookings.find(b => b.pickupCode === codeInput) || null;
+      if (codeInput.length !== 4) return [];
+      return bookings.filter(b => b.pickupCode === codeInput && (b.status === 'pending' || b.status === 'partial'));
     } else {
-      if (!nameInput.trim()) return null;
-      return bookings.find(b =>
-        b.customerName.toLowerCase().includes(nameInput.toLowerCase())
-      ) || null;
+      if (!nameInput.trim()) return [];
+      return bookings.filter(b =>
+        b.customerName.toLowerCase().includes(nameInput.toLowerCase()) &&
+        (b.status === 'pending' || b.status === 'partial')
+      );
     }
   }, [bookings, searchMode, codeInput, nameInput]);
+
+  const searchResult = searchResults.length > 0 ? searchResults[0] : null;
 
   const handleCodeChange = (value: string) => {
     const cleaned = value.replace(/\D/g, '').slice(0, 4);
@@ -73,19 +77,20 @@ const VerifyPage: React.FC = () => {
     console.log('[Verify] confirmPick:', booking.id);
     const refundItems = booking.items.filter(i => i.status === 'refunded');
     const exchangedItems = booking.items.filter(i => i.status === 'exchanged');
+    const normalItems = booking.items.filter(i => i.status === 'normal');
+    const isPartial = booking.status === 'partial';
 
-    if (refundItems.length > 0 || exchangedItems.length > 0) {
+    if (refundItems.length > 0 || exchangedItems.length > 0 || isPartial) {
       Taro.showModal({
-        title: '确认部分取货',
-        content: `该订单有${refundItems.length}件退款、${exchangedItems.length}件替换，确认完成核销？`,
+        title: isPartial ? '确认剩余商品取货' : '确认部分取货',
+        content: isPartial
+          ? `该订单此前已部分取货，${normalItems.length}件剩余商品确认已取？`
+          : `该订单有${refundItems.length}件退款、${exchangedItems.length}件替换，确认完成核销？`,
         confirmText: '确认核销',
         confirmColor: '#4CAF50',
         success: (res) => {
           if (res.confirm) {
-            updateBookingStatus(booking.id, refundItems.length > 0 && exchangedItems.length === 0 && refundItems.length === booking.items.length
-              ? 'cancelled'
-              : refundItems.length > 0 || exchangedItems.length > 0 ? 'partial' : 'picked'
-            );
+            updateBookingStatus(booking.id, 'picked');
             Taro.showToast({ title: '核销成功', icon: 'success' });
             setCodeInput('');
             setNameInput('');
@@ -186,12 +191,14 @@ const VerifyPage: React.FC = () => {
             />
             <Button
               className={styles.verifyBtn}
-              disabled={codeInput.length !== 4 || !searchResult || searchResult.status !== 'pending'}
+              disabled={codeInput.length !== 4 || !searchResult || (searchResult.status !== 'pending' && searchResult.status !== 'partial')}
               onClick={handleVerifyAll}
             >
               {codeInput.length === 4
                 ? (searchResult
-                    ? (searchResult.status === 'pending' ? '确认核销' : '该订单已处理')
+                    ? (searchResult.status === 'pending' || searchResult.status === 'partial'
+                      ? (searchResult.status === 'partial' ? '确认剩余商品取货' : '确认核销')
+                      : '该订单已处理')
                     : '未找到订单')
                 : `请输入4位取货码 (${codeInput.length}/4)`}
             </Button>
@@ -202,6 +209,10 @@ const VerifyPage: React.FC = () => {
           <View className={styles.statCol}>
             <Text className={styles.statNum}>{stats.totalPending}</Text>
             <Text className={styles.statLabel}>待取货</Text>
+          </View>
+          <View className={styles.statCol}>
+            <Text className={`${styles.statNum} ${styles.statNumOrange}`}>{stats.totalPartial}</Text>
+            <Text className={styles.statLabel}>部分取货</Text>
           </View>
           <View className={styles.statCol}>
             <Text className={`${styles.statNum} ${styles.statNumGreen}`}>{stats.todayPicked}</Text>
@@ -294,25 +305,32 @@ const VerifyPage: React.FC = () => {
                   </View>
                 )}
 
-                {searchResult.status === 'pending' && (
+                {(searchResult.status === 'pending' || searchResult.status === 'partial') && (
                   <View className={styles.resultActions}>
                     <Button
                       className={`${styles.actionBtn} ${styles.actionBtnError}`}
                       onClick={() => {
+                        const normalItems = searchResult.items
+                          .map((it, i) => ({ item: it, idx: i }))
+                          .filter(x => x.item.status === 'normal');
+                        if (normalItems.length === 0) {
+                          Taro.showToast({ title: '没有可处理的正常商品', icon: 'none' });
+                          return;
+                        }
                         Taro.showActionSheet({
-                          itemList: searchResult.items.map((it, i) =>
-                            `缺货退款: ${it.productName}(${it.specName})`
+                          itemList: normalItems.map(x =>
+                            `缺货退款: ${x.item.productName}(${x.item.specName})`
                           ).concat(
-                            searchResult.items.map((it, i) =>
-                              `缺货替换: ${it.productName}(${it.specName})`
+                            normalItems.map(x =>
+                              `缺货替换: ${x.item.productName}(${x.item.specName})`
                             )
                           ),
                           success: (res) => {
                             const idx = res.tapIndex;
-                            if (idx < searchResult.items.length) {
-                              handleMarkRefund(searchResult, idx);
+                            if (idx < normalItems.length) {
+                              handleMarkRefund(searchResult, normalItems[idx].idx);
                             } else {
-                              handleMarkExchange(searchResult, idx - searchResult.items.length);
+                              handleMarkExchange(searchResult, normalItems[idx - normalItems.length].idx);
                             }
                           }
                         });
@@ -324,7 +342,7 @@ const VerifyPage: React.FC = () => {
                       className={`${styles.actionBtn} ${styles.actionBtnPrimary}`}
                       onClick={() => handleConfirmPick(searchResult)}
                     >
-                      确认取货
+                      {searchResult.status === 'partial' ? '确认剩余取货' : '确认取货'}
                     </Button>
                   </View>
                 )}
@@ -345,7 +363,7 @@ const VerifyPage: React.FC = () => {
 
         {!searchResult && (
           <View className={styles.quickList}>
-            <Text className={styles.quickListTitle}>⏰ 待取货订单（快速选择）</Text>
+            <Text className={styles.quickListTitle}>⏰ 待处理订单（快速选择）</Text>
             {pendingBookings.length > 0 ? (
               pendingBookings.slice(0, 10).map(booking => (
                 <View

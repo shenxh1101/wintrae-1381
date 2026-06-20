@@ -516,6 +516,12 @@
   background: rgba(244, 67, 54, 0.06);
 }
 
+.secondaryBtnPurple {
+  color: #9C27B0;
+  border-color: rgba(156, 39, 176, 0.3);
+  background: rgba(156, 39, 176, 0.06);
+}
+
 .primaryBtn {
   @include button-reset;
   flex: 2;

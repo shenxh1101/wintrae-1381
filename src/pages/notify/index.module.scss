@@ -215,6 +215,159 @@
   }
 }
 
+.traceSection {
+  margin-top: $spacing-lg;
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  box-shadow: $shadow-card;
+}
+
+.traceHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.traceTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.traceToggle {
+  font-size: $font-size-xs;
+  color: #9C27B0;
+  font-weight: $font-weight-medium;
+}
+
+.traceBody {
+  margin-top: $spacing-md;
+}
+
+.traceSearchRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.traceInput {
+  flex: 1;
+  height: 72rpx;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+  padding: 0 $spacing-lg;
+  font-size: $font-size-sm;
+  border: 2rpx solid $color-border;
+
+  &:focus {
+    border-color: #9C27B0;
+  }
+}
+
+.traceClearBtn {
+  position: absolute;
+  right: 24rpx;
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  background: $color-text-tertiary;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+}
+
+.traceResults {
+  margin-top: $spacing-md;
+}
+
+.traceResultCount {
+  display: block;
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-bottom: $spacing-sm;
+}
+
+.traceCard {
+  padding: $spacing-md;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+  margin-bottom: $spacing-sm;
+  border-left: 6rpx solid #9C27B0;
+
+  &:active {
+    background: darken(#fff, 4%);
+  }
+}
+
+.traceCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+
+.traceCardType {
+  font-size: $font-size-xs;
+  color: #9C27B0;
+  font-weight: $font-weight-medium;
+}
+
+.traceCardTime {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.traceCardTitle {
+  display: block;
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: 6rpx;
+}
+
+.traceCardCustomer {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+  margin-bottom: 8rpx;
+  padding: 8rpx 12rpx;
+  background: rgba(156, 39, 176, 0.06);
+  border-radius: $radius-xs;
+}
+
+.traceCardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.traceCardContent {
+  flex: 1;
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.traceCardLink {
+  font-size: $font-size-xs;
+  color: #9C27B0;
+  font-weight: $font-weight-medium;
+  white-space: nowrap;
+  margin-left: $spacing-sm;
+}
+
+.traceEmpty {
+  padding: 60rpx 0;
+  text-align: center;
+}
+
+.traceHint {
+  padding: 40rpx 0;
+  text-align: center;
+}
+
 .historySection {
   margin-top: $spacing-lg;
 }

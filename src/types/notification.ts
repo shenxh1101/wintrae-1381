@@ -10,6 +10,25 @@ export interface NotificationTemplate {
   target: NotificationTarget;
 }
 
+export interface ItemSnapshot {
+  productName: string;
+  specName: string;
+  price: number;
+  quantity: number;
+  status: 'normal' | 'exchanged' | 'refunded';
+  exchangedItem?: string;
+}
+
+export interface CustomerSnapshot {
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  bookingId: string;
+  pickupCode: string;
+  orderNo: string;
+  items: ItemSnapshot[];
+}
+
 export interface SelectedCustomer {
   customerId: string;
   customerName: string;
@@ -26,7 +45,7 @@ export interface NotificationRecord {
   content: string;
   target: NotificationTarget;
   targetCount: number;
-  targetCustomers?: SelectedCustomer[];
+  targetCustomers?: CustomerSnapshot[];
   sentAt: string;
   status: 'success' | 'failed' | 'sending';
 }

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, Rea
 import Taro from '@tarojs/taro';
 import { Product } from '../types/product';
 import { Booking, deriveBookingStatus, calcRefundedAmount, calcActualAmount, statusLabels } from '../types/booking';
-import { NotificationRecord } from '../types/notification';
+import { NotificationRecord, CustomerSnapshot } from '../types/notification';
 import { mockProducts } from '../data/products';
 import { mockBookings } from '../data/bookings';
 import { mockNotificationRecords } from '../data/notifications';
@@ -29,6 +29,7 @@ interface AppContextType extends AppState {
   updateBookingStatus: (id: string, status: Booking['status'], remark?: string) => void;
   updateBookingItemStatus: (bookingId: string, itemIndex: number, status: 'normal' | 'exchanged' | 'refunded', exchangedItem?: string) => void;
   addNotification: (notification: Omit<NotificationRecord, 'id' | 'sentAt' | 'status'>) => void;
+  addBookingOperationLog: (bookingId: string, action: string, operator: string, detail?: string) => void;
   resetAllData: () => void;
 }
 
@@ -226,6 +227,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
     setNotifications(prev => [newNotification, ...prev]);
     console.log('[AppContext] addNotification:', newNotification.title, 'to', notificationData.targetCount, 'people');
+    return newNotification;
+  }, []);
+
+  const addBookingOperationLog = useCallback((bookingId: string, action: string, operator: string, detail?: string) => {
+    setBookings(prev => prev.map(b => {
+      if (b.id !== bookingId) return b;
+      const log = {
+        id: generateId(),
+        action,
+        operator,
+        timestamp: new Date().toISOString(),
+        detail
+      };
+      return {
+        ...b,
+        operationLogs: [...b.operationLogs, log]
+      };
+    }));
+    console.log('[AppContext] addBookingOperationLog:', bookingId, action);
   }, []);
 
   const resetAllData = useCallback(() => {
@@ -264,6 +284,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updateBookingStatus,
       updateBookingItemStatus,
       addNotification,
+      addBookingOperationLog,
       resetAllData
     }}>
       {children}

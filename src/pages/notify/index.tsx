@@ -1,14 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, Input, Textarea, Button, ScrollView, Checkbox, CheckboxGroup } from '@tarojs/components';
-import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro';
+import Taro, { useDidShow, usePullDownRefresh, useRouter } from '@tarojs/taro';
 import { useApp } from '../../store/AppContext';
 import { mockTemplates } from '../../data/notifications';
-import { NotificationType, NotificationTarget, notificationTypeLabels, notificationTargetLabels, SelectedCustomer } from '../../types/notification';
+import { NotificationType, NotificationTarget, notificationTypeLabels, notificationTargetLabels, SelectedCustomer, CustomerSnapshot } from '../../types/notification';
 import { timeAgo } from '../../utils';
 import styles from './index.module.scss';
 
 const NotifyPage: React.FC = () => {
-  const { notifications, bookings, addNotification } = useApp();
+  const router = useRouter();
+  const { notifications, bookings, addNotification, addBookingOperationLog } = useApp();
   const [selectedTemplate, setSelectedTemplate] = useState<NotificationType>('open');
   const [title, setTitle] = useState(mockTemplates[0].title);
   const [content, setContent] = useState(mockTemplates[0].content);
@@ -19,9 +20,25 @@ const NotifyPage: React.FC = () => {
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
   const [historyTypeFilter, setHistoryTypeFilter] = useState<NotificationType | 'all'>('all');
   const [historyTargetFilter, setHistoryTargetFilter] = useState<NotificationTarget | 'all'>('all');
+  const [traceSearch, setTraceSearch] = useState('');
+  const [showTrace, setShowTrace] = useState(false);
 
   useDidShow(() => {
     console.log('[Notify] didShow');
+    const params = router.params;
+    if (params?.fromBooking) {
+      const booking = bookings.find(b => b.id === params.fromBooking);
+      if (booking) {
+        setSelectedTemplate('outOfStock');
+        const tpl = mockTemplates.find(t => t.type === 'outOfStock');
+        if (tpl) {
+          setTitle(tpl.title);
+          setContent(params.notifyContent || tpl.content);
+        }
+        setTarget('specific');
+        setSelectedCustomerIds([booking.customerPhone]);
+      }
+    }
   });
 
   usePullDownRefresh(() => {
@@ -49,6 +66,35 @@ const NotifyPage: React.FC = () => {
     });
     return Array.from(customerMap.values());
   }, [bookings]);
+
+  const buildCustomerSnapshots = (targetType: NotificationTarget, specificIds?: string[]): CustomerSnapshot[] => {
+    let targetBookings: typeof bookings = [];
+    if (targetType === 'specific' && specificIds && specificIds.length > 0) {
+      targetBookings = bookings.filter(b => specificIds.includes(b.customerPhone));
+    } else if (targetType === 'pending') {
+      targetBookings = bookings.filter(b => b.status === 'pending' || b.status === 'partial');
+    } else if (targetType === 'picked') {
+      targetBookings = bookings.filter(b => b.status === 'picked');
+    } else {
+      targetBookings = [...bookings];
+    }
+    return targetBookings.map(b => ({
+      customerId: b.customerPhone,
+      customerName: b.customerName,
+      customerPhone: b.customerPhone,
+      bookingId: b.id,
+      pickupCode: b.pickupCode,
+      orderNo: b.orderNo,
+      items: b.items.map(i => ({
+        productName: i.productName,
+        specName: i.specName,
+        price: i.price,
+        quantity: i.quantity,
+        status: i.status,
+        exchangedItem: i.exchangedItem
+      }))
+    }));
+  };
 
   const selectedCustomers = useMemo(() => {
     return allCustomers.filter(c => selectedCustomerIds.includes(c.customerId));
@@ -163,23 +209,30 @@ const NotifyPage: React.FC = () => {
     }
 
     const finalCount = targetCounts[target];
-    const finalCustomers = target === 'specific' ? selectedCustomers : undefined;
+    const specificIds = target === 'specific' ? selectedCustomerIds : undefined;
+    const customerSnapshots = buildCustomerSnapshots(target, specificIds);
 
     Taro.showModal({
       title: '确认发送',
-      content: `将向「${notificationTargetLabels[target]}」(${finalCount}人) 发送此消息？${target === 'specific' && finalCustomers ? '\n' + finalCustomers.slice(0, 3).map(c => '• ' + c.customerName).join('\n') + (finalCustomers.length > 3 ? `\n等${finalCustomers.length}人` : '') : ''}`,
+      content: `将向「${notificationTargetLabels[target]}」(${finalCount}人) 发送此消息？${target === 'specific' && customerSnapshots.length > 0 ? '\n' + customerSnapshots.slice(0, 3).map(c => '• ' + c.customerName).join('\n') + (customerSnapshots.length > 3 ? `\n等${customerSnapshots.length}人` : '') : ''}`,
       confirmText: '确认发送',
       confirmColor: '#9C27B0',
       success: (res) => {
         if (res.confirm) {
-          addNotification({
+          const record = addNotification({
             type: selectedTemplate,
             title: title.trim(),
             content: content.trim(),
             target,
             targetCount: finalCount,
-            targetCustomers: finalCustomers
+            targetCustomers: customerSnapshots
           });
+          if (record && customerSnapshots.length > 0) {
+            const bookingIds = [...new Set(customerSnapshots.map(c => c.bookingId))];
+            bookingIds.forEach(bid => {
+              addBookingOperationLog(bid, '发送通知', '系统', `「${title.trim()}」已发送给 ${finalCount} 人`);
+            });
+          }
           Taro.showToast({ title: `已发送给 ${finalCount} 人`, icon: 'success' });
           if (selectedTemplate !== 'custom') {
             setTitle('');
@@ -252,6 +305,19 @@ const NotifyPage: React.FC = () => {
   const openNotificationDetail = (id: string) => {
     Taro.navigateTo({ url: `/pages/notification-detail/index?id=${id}` });
   };
+
+  const traceResults = useMemo(() => {
+    if (!traceSearch.trim()) return [];
+    const keyword = traceSearch.trim().toLowerCase();
+    return notifications.filter(n => {
+      if (!n.targetCustomers) return false;
+      return n.targetCustomers.some(c =>
+        c.customerName.toLowerCase().includes(keyword) ||
+        c.pickupCode.includes(keyword) ||
+        c.customerPhone.includes(keyword)
+      );
+    });
+  }, [notifications, traceSearch]);
 
   return (
     <View className={styles.page}>
@@ -361,6 +427,85 @@ const NotifyPage: React.FC = () => {
           >
             📤 {targetCounts[target] > 0 ? `发送给 ${targetCounts[target]} 人` : '发送消息'}
           </Button>
+        </View>
+
+        <View className={styles.traceSection}>
+          <View className={styles.traceHeader} onClick={() => setShowTrace(!showTrace)}>
+            <Text className={styles.traceTitle}>🔍 顾客通知追溯</Text>
+            <Text className={styles.traceToggle}>{showTrace ? '收起 ▲' : '展开 ▼'}</Text>
+          </View>
+          {showTrace && (
+            <View className={styles.traceBody}>
+              <View className={styles.traceSearchRow}>
+                <Input
+                  className={styles.traceInput}
+                  placeholder="输入顾客姓名、取货码或手机号"
+                  value={traceSearch}
+                  onInput={(e) => setTraceSearch(e.detail.value)}
+                />
+                {traceSearch.trim() && (
+                  <View className={styles.traceClearBtn} onClick={() => setTraceSearch('')}>
+                    ✕
+                  </View>
+                )}
+              </View>
+              {traceSearch.trim() && (
+                traceResults.length > 0 ? (
+                  <View className={styles.traceResults}>
+                    <Text className={styles.traceResultCount}>
+                      找到 {traceResults.length} 条相关通知
+                    </Text>
+                    {traceResults.map(n => {
+                      const matchedCustomer = n.targetCustomers?.find(c =>
+                        c.customerName.toLowerCase().includes(traceSearch.trim().toLowerCase()) ||
+                        c.pickupCode.includes(traceSearch.trim()) ||
+                        c.customerPhone.includes(traceSearch.trim())
+                      );
+                      return (
+                        <View
+                          key={n.id}
+                          className={styles.traceCard}
+                          onClick={() => openNotificationDetail(n.id)}
+                        >
+                          <View className={styles.traceCardHeader}>
+                            <Text className={styles.traceCardType}>
+                              {notificationTypeLabels[n.type]}
+                            </Text>
+                            <Text className={styles.traceCardTime}>{timeAgo(n.sentAt)}</Text>
+                          </View>
+                          <Text className={styles.traceCardTitle}>{n.title}</Text>
+                          {matchedCustomer && (
+                            <View className={styles.traceCardCustomer}>
+                              👤 {matchedCustomer.customerName} · 取货码 {matchedCustomer.pickupCode}
+                              {matchedCustomer.orderNo && ` · ${matchedCustomer.orderNo}`}
+                            </View>
+                          )}
+                          <View className={styles.traceCardFooter}>
+                            <Text className={styles.traceCardContent}>
+                              {n.content.length > 40 ? n.content.slice(0, 40) + '...' : n.content}
+                            </Text>
+                            <Text className={styles.traceCardLink}>查看详情 →</Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                ) : (
+                  <View className={styles.traceEmpty}>
+                    <Text style={{ fontSize: '60rpx', display: 'block', marginBottom: '16rpx', opacity: 0.4 }}>🔍</Text>
+                    <Text style={{ fontSize: '26rpx', color: '#86909C' }}>未找到包含该顾客的通知记录</Text>
+                  </View>
+                )
+              )}
+              {!traceSearch.trim() && (
+                <View className={styles.traceHint}>
+                  <Text style={{ fontSize: '26rpx', color: '#86909C' }}>
+                    输入顾客姓名、取货码或手机号，查找该顾客收到过的所有通知
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
         <View className={styles.historySection}>

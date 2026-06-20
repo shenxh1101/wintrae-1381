@@ -1,15 +1,20 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, Button } from '@tarojs/components';
 import Taro, { useRouter, useDidShow } from '@tarojs/taro';
 import { useApp } from '../../store/AppContext';
-import { NotificationType, NotificationTarget, notificationTypeLabels, notificationTargetLabels, SelectedCustomer } from '../../types/notification';
-import { formatDate, timeAgo } from '../../utils';
+import { NotificationType, NotificationTarget, notificationTypeLabels, notificationTargetLabels, CustomerSnapshot, ItemSnapshot } from '../../types/notification';
+import { formatDate, timeAgo, formatCurrency } from '../../utils';
 import styles from './index.module.scss';
+
+const itemStatusText: Record<ItemSnapshot['status'], string> = {
+  normal: '正常',
+  exchanged: '已替换',
+  refunded: '已退款'
+};
 
 const NotificationDetailPage: React.FC = () => {
   const router = useRouter();
   const { notifications, bookings } = useApp();
-  const [loading, setLoading] = useState(false);
 
   const notificationId = router.params?.id;
   const notification = useMemo(() =>
@@ -23,56 +28,13 @@ const NotificationDetailPage: React.FC = () => {
     }
   });
 
-  const targetCustomers = useMemo<SelectedCustomer[]>(() => {
-    if (!notification) return [];
-    if (notification.target === 'specific' && notification.targetCustomers && notification.targetCustomers.length > 0) {
-      return notification.targetCustomers;
-    }
-    if (notification.target === 'pending') {
-      return bookings
-        .filter(b => b.status === 'pending' || b.status === 'partial')
-        .map(b => ({
-          customerId: b.customerPhone,
-          customerName: b.customerName,
-          customerPhone: b.customerPhone,
-          bookingId: b.id,
-          pickupCode: b.pickupCode
-        }));
-    }
-    if (notification.target === 'picked') {
-      return bookings
-        .filter(b => b.status === 'picked')
-        .map(b => ({
-          customerId: b.customerPhone,
-          customerName: b.customerName,
-          customerPhone: b.customerPhone,
-          bookingId: b.id,
-          pickupCode: b.pickupCode
-        }));
-    }
-    if (notification.target === 'all') {
-      return bookings.map(b => ({
-        customerId: b.customerPhone,
-        customerName: b.customerName,
-        customerPhone: b.customerPhone,
-        bookingId: b.id,
-        pickupCode: b.pickupCode
-      }));
-    }
-    return [];
-  }, [notification, bookings]);
-
-  const getBookingByCustomer = (customerId: string) => {
-    return bookings.find(b => b.customerPhone === customerId || b.id === customerId);
-  };
+  const targetCustomers = useMemo<CustomerSnapshot[]>(() => {
+    if (!notification?.targetCustomers) return [];
+    return notification.targetCustomers;
+  }, [notification]);
 
   const handleOpenBooking = (bookingId: string) => {
-    const found = bookings.find(b => b.id === bookingId);
-    if (found) {
-      Taro.navigateTo({ url: `/pages/booking-detail/index?id=${bookingId}` });
-    } else {
-      Taro.showToast({ title: '订单不存在', icon: 'none' });
-    }
+    Taro.navigateTo({ url: `/pages/booking-detail/index?id=${bookingId}` });
   };
 
   const handleCallCustomer = (phone: string) => {
@@ -170,64 +132,76 @@ const NotificationDetailPage: React.FC = () => {
 
           <View className={styles.targetHintBox}>
             <Text className={styles.targetHintText}>
-              💡 {getTargetHint(notification.target)}
+              💡 {getTargetHint(notification.target)}（发送时快照，订单后续变更不影响此记录）
             </Text>
           </View>
 
           {targetCustomers.length > 0 ? (
             <View className={styles.customerList}>
-              {targetCustomers.map((cust, idx) => {
-                const booking = getBookingByCustomer(cust.bookingId || cust.customerId);
-                return (
-                  <View
-                    key={cust.customerId + '_' + idx}
-                    className={styles.customerCard}
-                    onClick={() => cust.bookingId && handleOpenBooking(cust.bookingId)}
-                  >
-                    <View className={styles.customerAvatar}>
-                      {cust.customerName.charAt(0) || '客'}
+              {targetCustomers.map((cust, idx) => (
+                <View
+                  key={cust.customerId + '_' + idx}
+                  className={styles.customerCard}
+                  onClick={() => handleOpenBooking(cust.bookingId)}
+                >
+                  <View className={styles.customerAvatar}>
+                    {cust.customerName.charAt(0) || '客'}
+                  </View>
+                  <View className={styles.customerInfo}>
+                    <View className={styles.customerTopRow}>
+                      <Text className={styles.customerName}>{cust.customerName}</Text>
+                      <View className={styles.customerPickupCode}>
+                        取货码 {cust.pickupCode}
+                      </View>
                     </View>
-                    <View className={styles.customerInfo}>
-                      <View className={styles.customerTopRow}>
-                        <Text className={styles.customerName}>{cust.customerName}</Text>
-                        {booking && (
-                          <View className={styles.customerPickupCode}>
-                            取货码 {booking.pickupCode}
+                    <Text className={styles.customerPhone}>📱 {cust.customerPhone}</Text>
+                    <Text className={styles.customerOrder}>
+                      📦 订单号 {cust.orderNo} · {cust.items.length}件商品
+                    </Text>
+                    {cust.items.length > 0 && (
+                      <View className={styles.snapshotItems}>
+                        {cust.items.map((item, iIdx) => (
+                          <View key={iIdx} className={styles.snapshotItem}>
+                            <Text className={styles.snapshotItemName}>
+                              {item.productName}({item.specName})
+                            </Text>
+                            <Text className={`${styles.snapshotItemStatus} ${
+                              item.status === 'refunded' ? styles.statusRefunded :
+                              item.status === 'exchanged' ? styles.statusExchanged :
+                              styles.statusNormal
+                            }`}>
+                              {itemStatusText[item.status]}
+                            </Text>
+                            {item.status === 'exchanged' && item.exchangedItem && (
+                              <Text className={styles.snapshotExchanged}> → {item.exchangedItem}</Text>
+                            )}
                           </View>
-                        )}
+                        ))}
                       </View>
-                      <Text className={styles.customerPhone}>📱 {cust.customerPhone}</Text>
-                      {booking && (
-                        <Text className={styles.customerOrder}>
-                          📦 订单号 {booking.orderNo} · {booking.items.length}件商品
-                        </Text>
-                      )}
+                    )}
+                  </View>
+                  <View className={styles.customerActions}>
+                    <View
+                      className={styles.actionIconBtn}
+                      onClick={(e) => { e.stopPropagation(); handleCallCustomer(cust.customerPhone); }}
+                    >
+                      📞
                     </View>
-                    <View className={styles.customerActions}>
-                      <View
-                        className={styles.actionIconBtn}
-                        onClick={(e) => { e.stopPropagation(); handleCallCustomer(cust.customerPhone); }}
-                      >
-                        📞
-                      </View>
-                      {cust.bookingId && (
-                        <View
-                          className={styles.actionIconBtn}
-                          onClick={(e) => { e.stopPropagation(); handleOpenBooking(cust.bookingId); }}
-                        >
-                          📋
-                        </View>
-                      )}
+                    <View
+                      className={styles.actionIconBtn}
+                      onClick={(e) => { e.stopPropagation(); handleOpenBooking(cust.bookingId); }}
+                    >
+                      📋
                     </View>
                   </View>
-                );
-              })}
+                </View>
+              ))}
             </View>
           ) : (
             <View style={{ padding: '60rpx 0', textAlign: 'center' }}>
               <Text style={{ fontSize: '80rpx', opacity: 0.4 }}>👥</Text>
               <View style={{ height: '16rpx' }} />
-              <Text style={{ fontSize: '26rpx', color: '#86909C' }}>暂无收件人信息</Text>
+              <Text style={{ fontSize: '26rpx', color: '#86909C' }}>暂无收件人快照信息</Text>
             </View>
           )}
         </View>

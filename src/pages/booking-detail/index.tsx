@@ -96,6 +96,22 @@ const BookingDetailPage: React.FC = () => {
                 updateBookingItemStatus(booking.id, itemIndex, 'exchanged', modalRes.content.trim());
                 Taro.showToast({ title: '已记录替换', icon: 'success' });
                 setActionLoading(null);
+                setTimeout(() => {
+                  Taro.showModal({
+                    title: '发送缺货说明',
+                    content: `是否立即向 ${booking.customerName} 发送缺货说明通知？`,
+                    confirmText: '去发送',
+                    confirmColor: '#9C27B0',
+                    success: (notifyRes) => {
+                      if (notifyRes.confirm) {
+                        const desc = `${item.productName}(${item.specName})已替换为${modalRes.content.trim()}`;
+                        Taro.navigateTo({
+                          url: `/pages/notify/index?fromBooking=${booking.id}&notifyContent=${encodeURIComponent('尊敬的顾客，您预订的部分商品因缺货已做如下调整：' + desc + '，如有疑问请联系摊主。')}`
+                        });
+                      }
+                    }
+                  });
+                }, 500);
               }
             }
           });
@@ -110,11 +126,42 @@ const BookingDetailPage: React.FC = () => {
                 updateBookingItemStatus(booking.id, itemIndex, 'refunded');
                 Taro.showToast({ title: '已提交退款', icon: 'success' });
                 setActionLoading(null);
+                setTimeout(() => {
+                  Taro.showModal({
+                    title: '发送缺货说明',
+                    content: `是否立即向 ${booking.customerName} 发送缺货退款通知？`,
+                    confirmText: '去发送',
+                    confirmColor: '#9C27B0',
+                    success: (notifyRes) => {
+                      if (notifyRes.confirm) {
+                        const desc = `${item.productName}(${item.specName})已退款${formatCurrency(item.price * item.quantity)}`;
+                        Taro.navigateTo({
+                          url: `/pages/notify/index?fromBooking=${booking.id}&notifyContent=${encodeURIComponent('尊敬的顾客，您预订的部分商品因缺货已办理退款：' + desc + '，退款将按原渠道返回，如有疑问请联系摊主。')}`
+                        });
+                      }
+                    }
+                  });
+                }, 500);
               }
             }
           });
         }
       }
+    });
+  };
+
+  const handleSendOutOfStockNotify = () => {
+    const processedItems = booking.items.filter(i => i.status === 'refunded' || i.status === 'exchanged');
+    if (processedItems.length === 0) {
+      Taro.showToast({ title: '当前没有需要通知的缺货商品', icon: 'none' });
+      return;
+    }
+    const desc = processedItems.map(i => {
+      if (i.status === 'exchanged') return `${i.productName}(${i.specName})→${i.exchangedItem}`;
+      return `${i.productName}(${i.specName})已退款`;
+    }).join('；');
+    Taro.navigateTo({
+      url: `/pages/notify/index?fromBooking=${booking.id}&notifyContent=${encodeURIComponent('尊敬的顾客，您预订的部分商品因缺货已做如下调整：' + desc + '。如有疑问请联系摊主。')}`
     });
   };
 
@@ -323,6 +370,14 @@ const BookingDetailPage: React.FC = () => {
             onClick={handleRefund}
           >
             {actionLoading === 'refund' ? '处理中...' : '全额退款'}
+          </View>
+        )}
+        {(booking.status === 'pending' || booking.status === 'partial') && booking.items.some(i => i.status === 'refunded' || i.status === 'exchanged') && (
+          <View
+            className={`${styles.secondaryBtn} ${styles.secondaryBtnPurple}`}
+            onClick={handleSendOutOfStockNotify}
+          >
+            📢 缺货说明
           </View>
         )}
         {canPickup ? (
